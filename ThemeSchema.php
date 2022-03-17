@@ -1,21 +1,24 @@
 <?php
 /**
- * PowerBIConnector Pugin
+ * ThemeSchema Plugin
  *
- * @author Gabriel Jenik <http://www.encuesta.biz/>
- * @copyright 2019 Gabriel Jenik <http://www.encuesta.biz/>
+ * @author Damián Ladiani <http://www.damianladiani.com/>
+ * @copyright 2019 Damián Ladiani <http://www.damianladiani.com/>
  * @license Propietary
- * @version 1.0.8
+ * @version 1.0.0
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  */
-class PowerBIConnector extends PluginBase {
+class ThemeSchema extends PluginBase {
+
+    use SecurityTrait;
+
     protected $storage = 'DbStorage';
-    static protected $description = 'PowerBIConnector';
-    static protected $name = 'PowerBIConnector';
+    static protected $description = 'ThemeSchema';
+    static protected $name = 'ThemeSchema';
     static protected $loadTranslations = TRUE;
     static protected $useActivateSurveyLevel = TRUE;
 
@@ -30,39 +33,10 @@ class PowerBIConnector extends PluginBase {
         ':'     // Array (Numbers)
     ];
 
-    // Global Settings
-    protected $settings = [
-        'maxFailedAttempts' => [
-            'type' => 'int',
-            'label' => 'Max Number of Failed Attempts',
-            'default' => 5,
-            //'help' => "",
-        ],
-        'ipWhitelist' => [
-            'type' => 'text',
-            'label' => 'Only allow connection from these IPs',
-            'default' => '',
-            'help' => 'IPs can be entered as IPs or using wildcards. Example:<br>192.168.0.1<br>192.168.*.*',
-        ],
-        'memoryLimit' => [
-            'type' => 'string',
-            'label' => 'Memory limit',
-            'default' => null,
-            'help' => "Leave empty to use the default memory limit (%CURRENT_MEMORY_LIMIT%)",
-        ],
-        'maxExecTime' => [
-            'type' => 'int',
-            'label' => 'Max Execution Time',
-            'default' => null,
-            'help' => "Leave empty to use the default max execution time (%CURRENT_MAX_EXEC_TIME%)",
-        ],
-    ];
-
     public function init()
     {
         $this->subscribe('beforeSurveySettings');
         $this->subscribe('newSurveySettings');
-        $this->subscribe('newQuestionAttributes');
         $this->subscribe('beforeControllerAction');
 
         //Can call plugin
@@ -75,103 +49,17 @@ class PowerBIConnector extends PluginBase {
      */
     public function beforeSurveySettings()
     {
-
-
         $event = $this->event;
         $surveyId = $event->get("survey");
-        $oSurvey = Survey::model()->findByPk($surveyId);
 
-        /*$getJsonDataPath =  $this->api->createUrl('plugins/unsecure', array(
-            'plugin' => $this->getName(),
-            'function' => 'getJsonData',
-            'surveyId' => $surveyId,
-            'token' => $this->get('token', 'Survey', $surveyId),
-        ));*/
-        $pluginName = get_class();
-        $token = $this->get('token', 'Survey', $surveyId);
-        $lang = $this->get('language', 'Survey', $surveyId, $oSurvey->language);
-        $answers = $this->get('answerFormat', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
-        $getJsonDataPath =  $this->api->createUrl("survey/index/{$pluginName}/{$surveyId}/t/{$token}/lang/{$lang}/answers/{$answers}",[]);
-        $getJsonDataPathBasic =  $this->api->createUrl("survey/index/{$pluginName}/{$surveyId}/t/{$token}",[]);
+         $this->getPluginLink('getJsonData', $surveyId);
 
-        $this->getPluginLink('getJsonData', $surveyId);
-
-        $baseURL = $this->getPluginBaseUrl() . "/";
-        
         $newSettings = array(
             'activate' => array(
                 'type'=>'boolean',
                 'label'=>'Activate',
                 'help'=>'',
                 'current' => $this->get('activate', 'Survey', $surveyId, $this->get('activate'))
-            ),
-            'debug' => array(
-                'type'=>'boolean',
-                'label'=>'Debug',
-                'help'=>'Show debugging information while running',
-                'current' => $this->get('debug', 'Survey', $surveyId, $this->get('debug'))
-            ),
-            'language' => array(
-                'type' => 'string',
-                'label' => 'Export language:',
-                'current' => $this->get('language', 'Survey', $surveyId, $oSurvey->language),
-                'help' => 'Language used when exporting the responses. Can be overriden using the \'lang\' url parameter.',
-            ),
-            'answerFormat' => array(
-                'type' => 'select',
-                'label' => 'Export responses as:',
-                'options'=>array(
-                    'short' => 'Answer codes',
-                    'long' => 'Full answers',
-                  ),
-                'current' => $this->get('answerFormat', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT),
-                'help' => 'Export answer codes (\'short\') or full answers (\'long\'). Can be overriden using the \'answers\' url parameter.',
-            ),
-            'token' => array(
-                'type' => 'string',
-                'label' => 'Security Token:',
-                'current' => $this->get('token', 'Survey', $surveyId),
-                'help' => 'Security token to be used for PowerBI to connect to LimeSurvey.',
-            ),
-            'maxFailedAttempts' => array(
-                'type' => 'int',
-                'label' => 'Max Number of Failed Attempts:',
-                'current' => $this->get('maxFailedAttempts', 'Survey', $surveyId, $this->settings['maxFailedAttempts']['default']),
-                //'help' => '',
-            ),
-            'failedAttempts' => array(
-                'type' => 'int',
-                'label' => 'Failed Attempts:',
-                'htmlOptions' => array(
-                    'readonly' => true,
-                ),
-                'current' => $this->get('failedAttempts', 'Survey', $surveyId, 0),
-                //'help' => '',
-            ),
-            'ipWhitelist' => array(
-                'type' => 'text',
-                'label' => 'Only allow connection from these IPs:',
-                'current' => $this->get('ipWhitelist', 'Survey', $surveyId),
-                'help' => 'IPs can be entered as IPs or using wildcards. Example:<br>192.168.0.1<br>192.168.*.*',
-            ),
-            'connectionURL' => array(
-                'type' => 'info',
-                'content' => '<label class="default control-label col-sm-6" for="plugin_PowerBIConnector_url">Connection URL:</label>
-                <div class="default col-sm-6 controls"><input size="50" class="form-control" type="text" value="' . $getJsonDataPath . '" id="plugin_PowerBIConnector_url" readonly>
-                <div class="help-block">See the usage details below</div></div>',            
-            ),
-            'usageInfo' => array(
-                'type' => 'info',
-                'content' => '<hr/>
-                <h2>Usage instructions</h2>
-                <div>Open Power BI > Get Data > JSON > [Connection URL]</div><br/>
-                <div class="alert alert-warning"><strong>Warning:</strong>&nbsp;The Connection URL shown above <strong>is based on the last saved settings</strong>. If you changed the settings, please save and check the URL again.</div>
-                <br/>
-                <p><h3>Step 1:</h3><img src="' . $baseURL . 'images/Step1.jpg" style="max-width:100%; height:auto;"></p><br/>
-                <p><h3>Step 2:</h3><img src="' . $baseURL . 'images/Step2.jpg" style="max-width:100%; height:auto;"></p><br/>
-                <p><h3>Step 3:</h3>In the "File name" field, paste your Connection URL: <strong>' . $getJsonDataPath . '</strong><img src="' . $baseURL . 'images/Step3.jpg" style="max-width:100%; height:auto;"></p>
-                <br/>
-                <p><h3>Note:</h3>You can omit the language and answer format from the URL to use the default values. Example: ' . $getJsonDataPathBasic . '</p>',            
             ),
         );
 
@@ -182,165 +70,67 @@ class PowerBIConnector extends PluginBase {
         ));
     }
 
-    /**
-     * Override getPluginSettings
-     */
-    public function getPluginSettings($getValues = true)
+
+    public function getJsonData($surveyid, $lang, $answerFormat)
     {
-        $maxExecTime = ini_get('max_execution_time');
-        $memoryLimit = ini_get('memory_limit');
+        $this->applyCustomPHPLimits();
 
-        $this->settings['memoryLimit']['help'] = str_replace("%CURRENT_MEMORY_LIMIT%", $memoryLimit, $this->settings['memoryLimit']['help']);
-        $this->settings['maxExecTime']['help'] = str_replace("%CURRENT_MAX_EXEC_TIME%", $maxExecTime, $this->settings['maxExecTime']['help']);
+        // Sanitize $answerFormat
+        if (!in_array($answerFormat, ['short', 'long'])) $answerFormat = self::DEFAULT_ANSWER_FORMAT;
 
-        return parent::getPluginSettings($getValues);
-    }
+        $oSurvey = Survey::model()->findByPk($surveyid);
+        if (!in_array($lang, $oSurvey->allLanguages)) $lang = $oSurvey->language;
 
-    /**
-     * Subscription to newUnsecureRequest Request event
-     */
-    public function newUnsecureRequest()
-    {
-        $oEvent = $this->event;
+        /**
+        * Fetch Responses
+        */
+        // Get JSON Responses
+        \Yii::app()->loadHelper('admin/exportresults');
+        $oFormattingOptions = new \FormattingOptions();
+        Yii::log("Getting responses", 'DEBUG','application.plugins.PowerBIConnector');
+        $responses = $this->fetchResponses($surveyid, 'json', $lang, 'complete', 'code', $answerFormat, NULL, NULL, NULL, $oFormattingOptions);
 
-        if ($oEvent->get('target') != $this->getName()) return;
-
-        // Check Active
-        $request = Yii::app()->request;
-        $surveyId = $request->getParam('surveyId', 0);
-        if (!$this->get('activate', 'Survey', $surveyId))
+        if (is_array($responses))
         {
-            return;
+            $responses = '{"responses":[]}';
         }
+        $a_responses = json_decode($responses);
 
-        $token = $request->getParam('token');
-        /**
-         * Check the security token.
-         * 
-         * The security token specified in the request should match
-         * the one in the survey's plugin settings.
-         * If it's missing or doesn't match, the plugin fails with
-         * a 404 code.
-         * 
-         */
-        if ($token!=$this->get('token', 'Survey', $surveyId)) {
-            http_response_code(404);
-            die();
-        }
+        $types = $this->getTypes($surveyid);
 
-        /**
-         * Initializa output
-         */
-        $out = $oEvent->getContent($this);
-        // $out->addContent("<p>Processing " . $oEvent->get('function') . "</p>");
-
-        /**
-         * Process request
-         */
-
-        $content = "";
-
-        // If this is a showChart request
-        if ($oEvent->get('function') == 'getJsonData')
-        {
-            $lang = $request->getParam('lang');
-            if (empty($lang)) $lang = $this->get('language', 'Survey', $surveyId);
-            $answers = $request->getParam('answers');
-            if (empty($answers)) $answers = $this->get('answerFormat', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
-
-            $content = $this->getJsonData($surveyId, $lang, $answers);
-        }
-
-        /**
-         * Finish output
-         */
-
-        //$out->addContent($content);
-        $oEvent->setContent($this, $content);
-        return;
-    }
-
-  public function getJsonData($surveyid, $lang, $answerFormat)
-  {
-    $this->applyCustomPHPLimits();
-
-    // Sanitize $answerFormat
-    if (!in_array($answerFormat, ['short', 'long'])) $answerFormat = self::DEFAULT_ANSWER_FORMAT;
-
-    $oSurvey = Survey::model()->findByPk($surveyid);
-    if (!in_array($lang, $oSurvey->allLanguages)) $lang = $oSurvey->language;
-
-    /**
-     * Fetch Responses
-     */
-    // Get JSON Responses
-    \Yii::app()->loadHelper('admin/exportresults');
-    $oFormattingOptions = new \FormattingOptions();
-    Yii::log("Getting responses", 'DEBUG','application.plugins.PowerBIConnector');
-    $responses = $this->fetchResponses($surveyid, 'json', $lang, 'complete', 'code', $answerFormat, NULL, NULL, NULL, $oFormattingOptions);
-
-    // If it's an array, then an error seems to have appeared
-    if (is_array($responses))
-    {
-      //echo "/*\n";
-      //var_dump($responses);
-      //echo "\n*/";
-      $responses = '{"responses":[]}';
-    }
-    //exit(print_r($responses));
-    $a_responses = json_decode($responses);
-
-    $types = $this->getTypes($surveyid);
-
-    // Transform Responses JSON
-    Yii::log("Transforming responses", 'DEBUG','application.plugins.PowerBIConnector');
-    $reportDef_Data=array();
-    foreach ($a_responses->responses as $response) {
-        $responseArray = get_object_vars($response);
-        // JsonWriter changed on version 4.3.19, so we need to check the structure
-        if (count($responseArray) == 1) {
-            $to_output_object = reset($responseArray);
-        } else {
-            $to_output_object = $response;
-        }
-        foreach ($to_output_object as $key => $value) {
-            if (is_null($value)) continue;
-
-            $type = !empty($types[$key]) ? $types[$key] : 'text';
-            switch ($type) {
-                case 'number': $to_output_object->$key = strlen($value) == 0 ? $value : (double) $value; break;
-                case 'date': $to_output_object->$key = str_replace("-", "/", $value);
-                default: $to_output_object->$key = (string) $value; break;
+        // Transform Responses JSON
+        Yii::log("Transforming responses", 'DEBUG','application.plugins.PowerBIConnector');
+        $reportDef_Data=array();
+            foreach ($a_responses->responses as $response) {
+            $responseArray = get_object_vars($response);
+            // JsonWriter changed on version 4.3.19, so we need to check the structure
+            if (count($responseArray) == 1) {
+                $to_output_object = reset($responseArray);
+            } else {
+                $to_output_object = $response;
             }
-        }
-        $reportDef_Data[]=$to_output_object;
-    }
+            foreach ($to_output_object as $key => $value) {
+                if (is_null($value)) continue;
 
-    /**
-     * Output
-     */
-    Yii::log("Sending output", 'DEBUG','application.plugins.PowerBIConnector');
-    header("Content-Disposition: inline; filename=survey_{$surveyid}.json");
-    header("Content-type: application/json");
-    $to_output_json = json_encode($reportDef_Data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
-    echo $to_output_json;
-    die(); // Don't output full body. Just this json.
-  }
-  
-    /**
-     * Handle Survey Settings Saving
-     */
-    public function newSurveySettings()
-    {
-        $event = $this->event;
-
-        foreach ($event->get('settings') as $name => $value)
-        {
-            // Avoid updating the 'failedAttempts' setting
-            if ($name!='failedAttempts') {
-                $this->set($name, $value, 'Survey', $event->get('survey'));
+                $type = !empty($types[$key]) ? $types[$key] : 'text';
+                switch ($type) {
+                    case 'number': $to_output_object->$key = strlen($value) == 0 ? $value : (double) $value; break;
+                    case 'date': $to_output_object->$key = str_replace("-", "/", $value);
+                    default: $to_output_object->$key = (string) $value; break;
+                }
             }
+            $reportDef_Data[]=$to_output_object;
         }
+
+        /**
+        * Output
+        */
+        Yii::log("Sending output", 'DEBUG','application.plugins.PowerBIConnector');
+        header("Content-Disposition: inline; filename=survey_{$surveyid}.json");
+        header("Content-type: application/json");
+        $to_output_json = json_encode($reportDef_Data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
+        echo $to_output_json;
+        die(); // Don't output full body. Just this json.
     }
 
     public function getPluginLink($method, $surveyId = NULL, $sa = "ajax", $extraParams = NULL)
@@ -354,44 +144,6 @@ class PowerBIConnector extends PluginBase {
         if (!empty($surveyId)) $params['surveyId'] = $surveyId;
 
         return $this->api->createUrl('admin/pluginhelper', $params);
-    }
-
-    protected function getPluginDir($class = NULL)
-    {
-        if ($this->LSVersionCompare("4")) {
-            return $this->getPluginDirLS4($class);
-        }
-
-        if (empty($class)) $class = get_class($this);
-
-        $basePath = __DIR__
-                    . DIRECTORY_SEPARATOR .'..'
-                    . DIRECTORY_SEPARATOR . '..'
-                    . DIRECTORY_SEPARATOR . $class;
-
-        return $basePath;
-    }
-
-    protected function getPluginDirLS4($class = NULL)
-    {
-        if (empty($class)) {
-            $object = new \ReflectionObject($this);
-        } else {
-            $object = new \ReflectionClass($class);
-        }
-
-        $filename = $object->getFileName();
-        $basePath = dirname($filename);
-
-        return $basePath;
-    }
-
-    protected function getPluginBaseUrl()
-    {
-        $pluginDir = $this->getPluginDir();
-        $pluginDir = str_replace(FCPATH, "", $pluginDir);
-        $url = \Yii::app()->getConfig('publicurl') . $pluginDir;
-        return $url;
     }
 
     /**
@@ -412,7 +164,6 @@ class PowerBIConnector extends PluginBase {
      */
     public function fetchResponses($iSurveyID, $sDocumentType = 'json', $sLanguageCode='en', $sCompletionStatus='all', $sHeadingType='code', $sResponseType='short', $iFromResponseID=null, $iToResponseID=null, $aFields=null, $oFormattingOptions=NULL)
     {
-
         /**
          * Initialization
          */
@@ -510,30 +261,6 @@ class PowerBIConnector extends PluginBase {
     public function LSVersionCompare($version, $compare = ">=")
     {
         return version_compare($this->LSVersion(), $version, $compare);
-    }
-
-    public function newQuestionAttributes()
-    {
-        $event = $this->getEvent();
-        $questionAttributes = [
-            'powerbiDataType' => [
-                'types'     => '15ABCDEFGHIKLMNOPQRSTUXY!:;|',
-                'category'  => 'PowerBI Connector',
-                //'sortorder' => 1,
-                'inputtype' => 'singleselect',
-                'default'   => 'default',
-                'help'      => 'Data type to use when exporting to JSON.',
-                'caption'   => 'Field data type',
-                'expression'=>[],
-                'options'   => array(
-                    'default' => gT('Default'),
-                    'text' => gT('Text'),
-                    'number' => gT('Number'),
-                    'date' => gT('Date'),
-                ),
-            ],
-        ];
-        $event->append('questionAttributes', $questionAttributes);
     }
 
     protected function getTypes($surveyId)
@@ -663,74 +390,7 @@ class PowerBIConnector extends PluginBase {
         $this->event->set('run', false);
     }
 
-    /**
-     * Checks that the token is valid.
-     * It takes into account the failed attempts.
-     */
-    private function validateToken($surveyId, $token)
-    {
-        // Before validating the token we need to check the number of failed attempts
-        if (!$this->validateFailedAttempts($surveyId)) {
-            return false;
-        }
 
-        if ($token != $this->get('token', 'Survey', $surveyId)) {
-            $this->increaseFailedAttempts($surveyId);
-            return false;
-        }
-
-        $this->resetFailedAttempts($surveyId);
-
-        return true;
-    }
-
-    private function validateFailedAttempts($surveyId)
-    {
-        $failedAttempts = $this->get('failedAttempts', 'Survey', $surveyId, 0);
-        $maxFailedAttempts = $this->getSetting('maxFailedAttempts', $surveyId);
-        if ($failedAttempts >= $maxFailedAttempts) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function increaseFailedAttempts($surveyId)
-    {
-        $failedAttempts = $this->get('failedAttempts', 'Survey', $surveyId, 0);
-        //$maxFailedAttempts = $this->getSetting('maxFailedAttempts', $surveyId);
-
-        // Update the setting
-        $this->set('failedAttempts', ++$failedAttempts, 'Survey', $surveyId);
-    }
-
-    private function resetFailedAttempts($surveyId)
-    {
-        $this->set('failedAttempts', 0, 'Survey', $surveyId);
-    }
-
-    private function isIpWhitelisted($surveyId)
-    {
-        $ip = substr(getIPAddress(), 0, 40);
-        $whiteList = $this->getIpWhiteList($surveyId);
-
-        foreach ($whiteList as $whiteListEntry) {
-            if (!empty($whiteListEntry) && preg_match('/' . str_replace('*', '\d+', $whiteListEntry) . '/', $ip, $m)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function getIpWhiteList($surveyId)
-    {
-        $whiteList = [];
-        $rawList = $this->getSetting('ipWhitelist', $surveyId, '');
-        if (!empty($rawList)) {
-            $whiteList = preg_split("/\R|,|;/", $rawList);
-        }
-        return $whiteList;
-    }
 
     private function getSetting($setting, $surveyId = null, $default = null)
     {
