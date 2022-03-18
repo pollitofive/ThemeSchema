@@ -43,6 +43,7 @@ class ThemeSchema extends PluginBase {
         $this->subscribe('newUnsecureRequest');
         $this->subscribe('newDirectRequest', 'newUnsecureRequest');
 
+        $this->subscribe('beforeCloseHtml');
         $this->subscribe('beforeSurveyPage');
     }
 
@@ -460,32 +461,38 @@ class ThemeSchema extends PluginBase {
 
     public function beforeSurveyPage()
     {
-        /**
-         * Init
-         */
         // Fetch event params
         $event = $this->getEvent();
         $surveyId = $event->get('surveyId');
+
         if (empty($surveyId)) return;
 
-        // Get plugin attributes at survey level
-        $custom_css = $this->get('custom_css', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
-        $custom_js = $this->get('custom_js', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
+        if (!$this->get('activate', 'Survey', $surveyId)) return;
 
+        // Get plugin attributes at survey level
+        $custom_js = $this->get('custom_js', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
 
         // Register script
         $client = Yii::app()->getClientScript();
-        //$client->registerScript(self::$name . "XXXXXXX", $setup, CClientScript::POS_READY);
 
         // Register Extra JS
         if($custom_js != "") {
             $client->registerScript(self::$name . "_js", $custom_js, CClientScript::POS_READY);
         }
-        // Register Extra CSS
-        if($custom_css) {
-            $client->registerCSS(self::$name . "_css","body { background: #f00 !important; }");
-        }
+    }
 
-        return;
+    public function beforeCloseHtml()
+    {
+        $event = $this->getEvent();
+        $surveyId = $event->get('surveyId');
+        if (empty($surveyId)) return;
+
+        if (!$this->get('activate', 'Survey', $surveyId)) return;
+
+        // Any other front-end page
+        $custom_css = $this->get('custom_css', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
+        if($custom_css) {
+            $event->set('html', "<style>{$custom_css}</style>");
+        }
     }
 }
