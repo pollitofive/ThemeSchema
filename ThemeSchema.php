@@ -479,6 +479,11 @@ class ThemeSchema extends PluginBase {
         if($custom_js != "") {
             $client->registerScript(self::$name . "_js", $custom_js, CClientScript::POS_READY);
         }
+
+        $schema = $this->get('schema', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
+        if($schema != "") {
+            $client->registerScript(self::$name . "_js", "document.body.classList.add('{$schema}')", CClientScript::POS_READY);
+        }
     }
 
     public function beforeCloseHtml()
