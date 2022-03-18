@@ -42,6 +42,8 @@ class ThemeSchema extends PluginBase {
         //Can call plugin
         $this->subscribe('newUnsecureRequest');
         $this->subscribe('newDirectRequest', 'newUnsecureRequest');
+
+        $this->subscribe('beforeSurveyPage');
     }
 
     /**
@@ -52,7 +54,7 @@ class ThemeSchema extends PluginBase {
         $event = $this->event;
         $surveyId = $event->get("survey");
 
-         $this->getPluginLink('getJsonData', $surveyId);
+        $this->getPluginLink('getJsonData', $surveyId);
 
         $newSettings = array(
             'activate' => array(
@@ -61,13 +63,49 @@ class ThemeSchema extends PluginBase {
                 'help'=>'',
                 'current' => $this->get('activate', 'Survey', $surveyId, $this->get('activate'))
             ),
+            'schema' => array(
+                'type'=>'string',
+                'label'=>'Schema',
+                'help'=>'',
+                'current' => $this->get('schema', 'Survey', $surveyId, $this->get('schema'))
+            ),
+            'custom_css' => array(
+                'type'=>'text',
+                'label'=>'Custom CSS',
+                'help'=>'',
+                'current' => $this->get('custom_css', 'Survey', $surveyId, $this->get('custom_css'))
+            ),
+            'custom_js' => array(
+                'type'=>'text',
+                'label'=>'Custom JS',
+                'help'=>'',
+                'current' => $this->get('custom_js', 'Survey', $surveyId, $this->get('custom_js'))
+            ),
         );
+
+
 
         // Set all settings
         $event->set("surveysettings.{$this->id}", array(
             'name' => get_class($this),
             'settings' => $newSettings,
         ));
+    }
+
+    /**
+     * Handle Survey Settings Saving
+     */
+    public function newSurveySettings()
+    {
+        $event = $this->event;
+
+        foreach ($event->get('settings') as $name => $value)
+        {
+            // Avoid updating the 'failedAttempts' setting
+            if ($name!='failedAttempts') {
+                $this->set($name, $value, 'Survey', $event->get('survey'));
+            }
+        }
     }
 
 
@@ -418,5 +456,36 @@ class ThemeSchema extends PluginBase {
             Yii::log("Setting memory_limit to $memoryLimit", 'DEBUG','application.plugins.PowerBIConnector');
             ini_set('memory_limit', $memoryLimit);
         }
+    }
+
+    public function beforeSurveyPage()
+    {
+        /**
+         * Init
+         */
+        // Fetch event params
+        $event = $this->getEvent();
+        $surveyId = $event->get('surveyId');
+        if (empty($surveyId)) return;
+
+        // Get plugin attributes at survey level
+        $custom_css = $this->get('custom_css', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
+        $custom_js = $this->get('custom_js', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
+
+
+        // Register script
+        $client = Yii::app()->getClientScript();
+        //$client->registerScript(self::$name . "XXXXXXX", $setup, CClientScript::POS_READY);
+
+        // Register Extra JS
+        if($custom_js != "") {
+            $client->registerScript(self::$name . "_js", $custom_js, CClientScript::POS_READY);
+        }
+        // Register Extra CSS
+        if($custom_css) {
+            $client->registerCSS(self::$name . "_css","body { background: #f00 !important; }");
+        }
+
+        return;
     }
 }
