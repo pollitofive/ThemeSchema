@@ -483,6 +483,14 @@ class ThemeSchema extends PluginBase {
         $schema = $this->get('schema', 'Survey', $surveyId, self::DEFAULT_ANSWER_FORMAT);
         if($schema != "") {
             $client->registerScript(self::$name . "_js", "document.body.classList.add('{$schema}')", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "buttons", "var inputs = document.querySelectorAll('button'); for(i=0;i<inputs.length;i++) { inputs[i].className += ' {$schema}'; } ", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "h2", "var inputs = document.querySelectorAll('h2'); for(i=0;i<inputs.length;i++) { inputs[i].className += ' {$schema}'; } ", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "progress-bar", "elements = document.getElementsByClassName('progress'); for(i=0;i<elements.length;i++) { elements[i].classList.add('{$schema}') }", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "limesurvey", "document.getElementById('limesurvey').classList.add('{$schema}')", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "survey-name", "elements = document.getElementsByClassName('survey-name'); for(i=0;i<elements.length;i++) { elements[i].classList.add('{$schema}') }", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "question-count-text", "elements = document.getElementsByClassName('question-count-text'); for(i=0;i<elements.length;i++) { elements[i].classList.add('{$schema}') }", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "question-container", "elements = document.getElementsByClassName('question-container'); for(i=0;i<elements.length;i++) { elements[i].classList.add('{$schema}') }", CClientScript::POS_READY);
+            $client->registerScript(self::$name . "progress-value", "elements = document.getElementsByClassName('progress-value'); for(i=0;i<elements.length;i++) { elements[i].classList.add('{$schema}') }", CClientScript::POS_READY);
         }
     }
 
